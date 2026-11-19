@@ -1,0 +1,296 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ---------------------------------------------------------
+    // Global Hardened Primitives
+    // ---------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isVerifiedOwner(userId) {
+      return isVerified() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function parentUserExists(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    function parentUserExistsAfter(userId) {
+      return existsAfter(/databases/$(database)/documents/users/$(userId));
+    }
+
+    // ---------------------------------------------------------
+    // Validation Blueprints
+    // ---------------------------------------------------------
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'fullName', 'businessName', 'email', 'mobileNumber', 'plan', 'trialEndsAt', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'fullName', 'businessName', 'email', 'mobileNumber', 'plan', 'trialEndsAt', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 100
+        && data.businessName is string && data.businessName.size() >= 2 && data.businessName.size() <= 120
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.mobileNumber is string && data.mobileNumber.size() <= 20
+        && data.plan is string && data.plan in ['free_trial', 'premium']
+        && data.trialEndsAt is timestamp
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBusinessProfile(data, userId) {
+      return data.keys().hasAll(['ownerId', 'businessName', 'shopCategory', 'phone', 'email', 'address', 'currency', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'businessName', 'shopCategory', 'phone', 'email', 'address', 'city', 'state', 'gstin', 'currency', 'createdAt', 'updatedAt'])
+        && data.ownerId is string && data.ownerId == userId && isValidId(data.ownerId)
+        && data.businessName is string && data.businessName.size() >= 2 && data.businessName.size() <= 120
+        && data.shopCategory is string && data.shopCategory.size() <= 60
+        && data.phone is string && data.phone.size() <= 20
+        && data.email is string && data.email.size() <= 160
+        && data.address is string && data.address.size() <= 250
+        && (!('city' in data) || (data.city is string && data.city.size() <= 80))
+        && (!('state' in data) || (data.state is string && data.state.size() <= 80))
+        && (!('gstin' in data) || (data.gstin is string && data.gstin.size() <= 20))
+        && data.currency == 'INR'
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidProduct(data, userId) {
+      return data.keys().hasAll(['ownerId', 'name', 'sku', 'category', 'stockQuantity', 'minStockLevel', 'purchasePrice', 'sellingPrice', 'supplierName', 'unit', 'totalUnitsSold', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'name', 'sku', 'category', 'stockQuantity', 'minStockLevel', 'purchasePrice', 'sellingPrice', 'supplierName', 'unit', 'imageUrl', 'totalUnitsSold', 'createdAt', 'updatedAt'])
+        && data.ownerId is string && data.ownerId == userId && isValidId(data.ownerId)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.sku is string && data.sku.size() >= 1 && data.sku.size() <= 40 && data.sku.matches('^[a-zA-Z0-9_\\-\\.]+$')
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 60
+        && (data.stockQuantity is int || data.stockQuantity is float) && data.stockQuantity >= 0 && data.stockQuantity <= 1000000
+        && (data.minStockLevel is int || data.minStockLevel is float) && data.minStockLevel >= 0 && data.minStockLevel <= 1000000
+        && (data.purchasePrice is int || data.purchasePrice is float) && data.purchasePrice >= 0 && data.purchasePrice <= 10000000
+        && (data.sellingPrice is int || data.sellingPrice is float) && data.sellingPrice >= 0 && data.sellingPrice <= 10000000
+        && data.supplierName is string && data.supplierName.size() <= 100
+        && data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 24
+        && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500))
+        && (data.totalUnitsSold is int || data.totalUnitsSold is float) && data.totalUnitsSold >= 0 && data.totalUnitsSold <= 10000000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSale(data, userId) {
+      return data.keys().hasAll(['ownerId', 'invoiceNumber', 'customerName', 'paymentMethod', 'items', 'itemCount', 'totalAmount', 'totalCost', 'grossProfit', 'status', 'createdAt'])
+        && data.keys().hasOnly(['ownerId', 'invoiceNumber', 'customerName', 'customerPhone', 'paymentMethod', 'items', 'itemCount', 'totalAmount', 'totalCost', 'grossProfit', 'status', 'createdAt'])
+        && data.ownerId is string && data.ownerId == userId && isValidId(data.ownerId)
+        && data.invoiceNumber is string && data.invoiceNumber.size() >= 3 && data.invoiceNumber.size() <= 40
+        && data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100
+        && (!('customerPhone' in data) || (data.customerPhone is string && data.customerPhone.size() <= 20))
+        && data.paymentMethod is string && data.paymentMethod in ['Cash', 'UPI', 'Card', 'Credit']
+        && data.items is list && data.items.size() >= 1 && data.items.size() <= 50
+        && data.items[0] is map
+        && data.items[0].keys().hasAll(['productId', 'productName', 'sku', 'quantity', 'unitPurchasePrice', 'unitSellingPrice', 'lineTotal', 'lineProfit'])
+        && data.items[0].keys().hasOnly(['productId', 'productName', 'sku', 'quantity', 'unitPurchasePrice', 'unitSellingPrice', 'lineTotal', 'lineProfit'])
+        && (data.itemCount is int || data.itemCount is float) && data.itemCount >= 1 && data.itemCount <= 50
+        && (data.totalAmount is int || data.totalAmount is float) && data.totalAmount >= 0 && data.totalAmount <= 100000000
+        && (data.totalCost is int || data.totalCost is float) && data.totalCost >= 0 && data.totalCost <= 100000000
+        && (data.grossProfit is int || data.grossProfit is float) && data.grossProfit >= -100000000 && data.grossProfit <= 100000000
+        && data.status == 'completed'
+        && data.createdAt is timestamp;
+    }
+
+    function isValidInventoryTransaction(data, userId) {
+      return data.keys().hasAll(['ownerId', 'type', 'productId', 'productName', 'quantityDelta', 'amount', 'note', 'createdAt'])
+        && data.keys().hasOnly(['ownerId', 'type', 'productId', 'productName', 'quantityDelta', 'amount', 'referenceId', 'note', 'createdAt'])
+        && data.ownerId is string && data.ownerId == userId && isValidId(data.ownerId)
+        && data.type is string && data.type in ['sale', 'restock', 'adjustment', 'initial']
+        && data.productId is string && isValidId(data.productId)
+        && data.productName is string && data.productName.size() >= 1 && data.productName.size() <= 120
+        && (data.quantityDelta is int || data.quantityDelta is float) && data.quantityDelta >= -1000000 && data.quantityDelta <= 1000000
+        && (data.amount is int || data.amount is float) && data.amount >= -100000000 && data.amount <= 100000000
+        && (!('referenceId' in data) || (data.referenceId is string && data.referenceId.size() <= 128))
+        && data.note is string && data.note.size() <= 200
+        && data.createdAt is timestamp;
+    }
+
+    function isValidAlertNotification(data, userId) {
+      return data.keys().hasAll(['ownerId', 'type', 'productId', 'productName', 'currentStock', 'minStockLevel', 'suggestedReorderQty', 'message', 'isRead', 'createdAt'])
+        && data.keys().hasOnly(['ownerId', 'type', 'productId', 'productName', 'currentStock', 'minStockLevel', 'suggestedReorderQty', 'message', 'isRead', 'createdAt'])
+        && data.ownerId is string && data.ownerId == userId && isValidId(data.ownerId)
+        && data.type is string && data.type in ['low_stock', 'out_of_stock', 'reorder_placed', 'system']
+        && data.productId is string && isValidId(data.productId)
+        && data.productName is string && data.productName.size() >= 1 && data.productName.size() <= 120
+        && (data.currentStock is int || data.currentStock is float) && data.currentStock >= 0
+        && (data.minStockLevel is int || data.minStockLevel is float) && data.minStockLevel >= 0
+        && (data.suggestedReorderQty is int || data.suggestedReorderQty is float) && data.suggestedReorderQty >= 0
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 240
+        && data.isRead is bool
+        && data.createdAt is timestamp;
+    }
+
+    // ---------------------------------------------------------
+    // Collection Rules
+    // ---------------------------------------------------------
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().plan == 'free_trial'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().plan == existing().plan
+        && incoming().trialEndsAt == existing().trialEndsAt
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'businessName', 'mobileNumber', 'updatedAt']);
+
+      allow delete: if false;
+
+      match /business/{businessId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(businessId);
+        allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(businessId)
+          && isValidBusinessProfile(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && parentUserExistsAfter(userId);
+
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(businessId)
+          && isValidBusinessProfile(incoming(), userId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['businessName', 'shopCategory', 'phone', 'email', 'address', 'city', 'state', 'gstin', 'updatedAt']);
+
+        allow delete: if false;
+      }
+
+      match /products/{productId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(productId);
+        allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(productId)
+          && isValidProduct(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && parentUserExists(userId);
+
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(productId)
+          && isValidProduct(incoming(), userId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            // Action 1: Edit Product Catalog Details
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'sku', 'category', 'stockQuantity', 'minStockLevel', 'purchasePrice', 'sellingPrice', 'supplierName', 'unit', 'imageUrl', 'updatedAt']) ||
+            // Action 2: Record Sale Deduction
+            (incoming().diff(existing()).affectedKeys().hasOnly(['stockQuantity', 'totalUnitsSold', 'updatedAt'])
+              && incoming().stockQuantity <= existing().stockQuantity
+              && incoming().totalUnitsSold >= existing().totalUnitsSold) ||
+            // Action 3: Restock Inventory
+            (incoming().diff(existing()).affectedKeys().hasOnly(['stockQuantity', 'updatedAt'])
+              && incoming().stockQuantity >= existing().stockQuantity)
+          );
+
+        allow delete: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(productId)
+          && parentUserExists(userId);
+      }
+
+      match /sales/{saleId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(saleId);
+        allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(saleId)
+          && isValidSale(incoming(), userId)
+          && incoming().createdAt == request.time
+          && parentUserExists(userId);
+
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      match /transactions/{transactionId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(transactionId);
+        allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(transactionId)
+          && isValidInventoryTransaction(incoming(), userId)
+          && incoming().createdAt == request.time
+          && parentUserExists(userId);
+
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      match /notifications/{notificationId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(notificationId);
+        allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(notificationId)
+          && isValidAlertNotification(incoming(), userId)
+          && incoming().createdAt == request.time
+          && parentUserExists(userId);
+
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(notificationId)
+          && isValidAlertNotification(incoming(), userId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().diff(existing()).affectedKeys().hasOnly(['isRead']);
+
+        allow delete: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(notificationId)
+          && parentUserExists(userId);
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "SmartStock",
+  "description": "SmartStock — Real-time inventory, sales billing, low-stock alerts, and profit analytics for small Indian retail businesses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

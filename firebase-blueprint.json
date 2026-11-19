@@ -1,0 +1,144 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated shop owner account profile and subscription status",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "businessName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "mobileNumber": { "type": "string", "maxLength": 20 },
+        "plan": { "type": "string", "enum": ["free_trial", "premium"] },
+        "trialEndsAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "businessName", "email", "mobileNumber", "plan", "trialEndsAt", "createdAt", "updatedAt"]
+    },
+    "BusinessProfile": {
+      "title": "BusinessProfile",
+      "description": "Shop and business operational details for receipts and settings",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "businessName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "shopCategory": { "type": "string", "maxLength": 60 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "address": { "type": "string", "maxLength": 250 },
+        "city": { "type": "string", "maxLength": 80 },
+        "state": { "type": "string", "maxLength": 80 },
+        "gstin": { "type": "string", "maxLength": 20 },
+        "currency": { "type": "string", "enum": ["INR"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "businessName", "shopCategory", "phone", "email", "address", "currency", "createdAt", "updatedAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Retail inventory SKU item owned by a specific merchant",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "sku": { "type": "string", "minLength": 1, "maxLength": 40, "pattern": "^[a-zA-Z0-9_\\-\\.]+$" },
+        "category": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "stockQuantity": { "type": "number" },
+        "minStockLevel": { "type": "number" },
+        "purchasePrice": { "type": "number" },
+        "sellingPrice": { "type": "number" },
+        "supplierName": { "type": "string", "maxLength": 100 },
+        "unit": { "type": "string", "maxLength": 24 },
+        "imageUrl": { "type": "string", "maxLength": 500 },
+        "totalUnitsSold": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "sku", "category", "stockQuantity", "minStockLevel", "purchasePrice", "sellingPrice", "supplierName", "unit", "totalUnitsSold", "createdAt", "updatedAt"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Completed customer sale invoice with line items and profit calculation",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "invoiceNumber": { "type": "string", "minLength": 3, "maxLength": 40 },
+        "customerName": { "type": "string", "maxLength": 100 },
+        "customerPhone": { "type": "string", "maxLength": 20 },
+        "paymentMethod": { "type": "string", "enum": ["Cash", "UPI", "Card", "Credit"] },
+        "items": { "type": "array" },
+        "itemCount": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "totalCost": { "type": "number" },
+        "grossProfit": { "type": "number" },
+        "status": { "type": "string", "enum": ["completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "invoiceNumber", "customerName", "paymentMethod", "items", "itemCount", "totalAmount", "totalCost", "grossProfit", "status", "createdAt"]
+    },
+    "InventoryTransaction": {
+      "title": "InventoryTransaction",
+      "description": "Stock movement ledger entry for sales, restocks, and adjustments",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "type": { "type": "string", "enum": ["sale", "restock", "adjustment", "initial"] },
+        "productId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "productName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "quantityDelta": { "type": "number" },
+        "amount": { "type": "number" },
+        "referenceId": { "type": "string", "maxLength": 128 },
+        "note": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "type", "productId", "productName", "quantityDelta", "amount", "note", "createdAt"]
+    },
+    "AlertNotification": {
+      "title": "AlertNotification",
+      "description": "Low stock and reorder notification for a merchant",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "type": { "type": "string", "enum": ["low_stock", "out_of_stock", "reorder_placed", "system"] },
+        "productId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "productName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "currentStock": { "type": "number" },
+        "minStockLevel": { "type": "number" },
+        "suggestedReorderQty": { "type": "number" },
+        "message": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "type", "productId", "productName", "currentStock", "minStockLevel", "suggestedReorderQty", "message", "isRead", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User account profile isolated by userId"
+    },
+    "/users/{userId}/business/{businessId}": {
+      "schema": { "$ref": "#/entities/BusinessProfile" },
+      "description": "Business settings document for the user's shop"
+    },
+    "/users/{userId}/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "User-isolated inventory product catalog"
+    },
+    "/users/{userId}/sales/{saleId}": {
+      "schema": { "$ref": "#/entities/Sale" },
+      "description": "User-isolated completed sales invoices"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/InventoryTransaction" },
+      "description": "User-isolated stock and sales movement ledger"
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/AlertNotification" },
+      "description": "User-isolated low-stock and reorder notifications"
+    }
+  }
+}
